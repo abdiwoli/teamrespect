@@ -1,0 +1,274 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<header class="page-header">
+    <div class="header-text">
+        <h1>Falanqeyn (Analytics)</h1>
+        <p>Warbixinta imaanshaha xubnaha kooxda.</p>
+    </div>
+
+    <div class="header-actions">
+        <div class="filter-group">
+            <a href="/stats?timeframe=1m" class="filter-btn {{ 'active' if timeframe == '1m' else '' }}">1 Bil</a>
+            <a href="/stats?timeframe=3m" class="filter-btn {{ 'active' if timeframe == '3m' else '' }}">3 Bil</a>
+            <a href="/stats?timeframe=6m" class="filter-btn {{ 'active' if timeframe == '6m' else '' }}">6 Bil</a>
+            <a href="/stats?timeframe=1y" class="filter-btn {{ 'active' if timeframe == '1y' else '' }}">1 Sano</a>
+            <a href="/stats?timeframe=all" class="filter-btn {{ 'active' if timeframe == 'all' else '' }}">All</a>
+        </div>
+    </div>
+</header>
+
+<div class="stats-grid">
+    {% for stat in stats %}
+    <div class="stat-card">
+        <div class="stat-rank">
+            {% if loop.index == 1 %} <i class="fas fa-crown gold"></i>
+            {% elif loop.index == 2 %} <i class="fas fa-crown silver"></i>
+            {% elif loop.index == 3 %} <i class="fas fa-crown bronze"></i>
+            {% else %} #{{ loop.index }}
+            {% endif %}
+        </div>
+
+        <div class="stat-header">
+            <div class="member-avatar lg">{{ stat.member.name[0] }}</div>
+            <div class="stat-info">
+                <h3>{{ stat.member.name }}</h3>
+                <span class="role">{{ stat.member.role }}</span>
+            </div>
+
+            <!-- Circular Progress -->
+            <div class="progress-ring" style="--percent: {{ stat.score }}%">
+                <div class="inner-value">{{ stat.score }}%</div>
+            </div>
+        </div>
+
+        <div class="stat-breakdown">
+            <div class="stat-row">
+                <span class="label"><i class="fas fa-check-circle text-success"></i> Jooga</span>
+                <span class="value">{{ stat.jooga }}</span>
+                <div class="bar-bg">
+                    <div class="bar-fill success"
+                        style="width: {{ (stat.jooga / stat.total * 100) if stat.total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+
+            <div class="stat-row">
+                <span class="label"><i class="fas fa-times-circle text-danger"></i> Maqan</span>
+                <span class="value">{{ stat.maqan }}</span>
+                <div class="bar-bg">
+                    <div class="bar-fill danger"
+                        style="width: {{ (stat.maqan / stat.total * 100) if stat.total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+
+            <div class="stat-row">
+                <span class="label"><i class="fas fa-clock text-warning"></i> Fasax</span>
+                <span class="value">{{ stat.fasax }}</span>
+                <div class="bar-bg">
+                    <div class="bar-fill warning"
+                        style="width: {{ (stat.fasax / stat.total * 100) if stat.total > 0 else 0 }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-footer">
+            <span>Total Meetings: {{ stat.total }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        padding-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 1.5rem;
+        position: relative;
+        backdrop-filter: blur(10px);
+        transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-color);
+    }
+
+    .stat-rank {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-weight: 800;
+        font-size: 1.2rem;
+        color: var(--text-muted);
+    }
+
+    .stat-rank .gold {
+        color: #fbbf24;
+    }
+
+    .stat-rank .silver {
+        color: #94a3b8;
+    }
+
+    .stat-rank .bronze {
+        color: #b45309;
+    }
+
+    /* Header & Ring */
+    .stat-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .member-avatar.lg {
+        width: 3.5rem;
+        height: 3.5rem;
+        font-size: 1.5rem;
+    }
+
+    .stat-info h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: white;
+    }
+
+    .stat-info .role {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    /* Progress Ring CSS Trick */
+    .progress-ring {
+        margin-left: auto;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: conic-gradient(var(--primary-color) calc(var(--percent) * 1%), #334155 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .progress-ring::before {
+        content: '';
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        background: #1e293b;
+        border-radius: 50%;
+    }
+
+    .inner-value {
+        position: relative;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    /* Breakdown Bars */
+    .stat-breakdown {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .stat-row {
+        display: grid;
+        grid-template-columns: 80px 30px 1fr;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .stat-row .label {
+        opacity: 0.9;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .text-success {
+        color: var(--success-color);
+    }
+
+    .text-danger {
+        color: var(--danger-color);
+    }
+
+    .text-warning {
+        color: var(--warning-color);
+    }
+
+    .bar-bg {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+
+    .bar-fill.success {
+        background: var(--success-color);
+    }
+
+    .bar-fill.danger {
+        background: var(--danger-color);
+    }
+
+    .bar-fill.warning {
+        background: var(--warning-color);
+    }
+
+    .stat-footer {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    /* Filter Group */
+    .filter-group {
+        background: rgba(15, 23, 42, 0.6);
+        padding: 0.25rem;
+        border-radius: 12px;
+        display: flex;
+        border: 1px solid var(--glass-border);
+    }
+
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: 0.2s;
+    }
+
+    .filter-btn:hover {
+        color: white;
+    }
+
+    .filter-btn.active {
+        background: var(--primary-color);
+        color: white;
+    }
+</style>
+{% endblock %}

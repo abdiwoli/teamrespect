@@ -1,0 +1,159 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<header class="page-header">
+    <div class="header-text">
+        <h1>Taariikhda Kulamada</h1>
+        <p>Liiska kulamadii hore ee Team Respect.</p>
+    </div>
+</header>
+
+<div class="attendance-card">
+    <table class="attendance-table">
+        <thead>
+            <tr>
+                <th>Taariikh (Date)</th>
+                <th>Xaaladda (Status)</th>
+                <th>Xog (Notes)</th>
+                <th class="text-right">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for meeting in meetings %}
+            <tr>
+                <td>
+                    <div class="date-display">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>{{ meeting.date }}</span>
+                    </div>
+                </td>
+                <td>
+                    {% if meeting.status == 'Approved' %}
+                    <span class="badge success">Approved</span>
+                    {% else %}
+                    <span class="badge warning">Pending</span>
+                    {% endif %}
+                </td>
+                <td>{{ meeting.note or '-' }}</td>
+                <td class="text-right">
+                    {% if current_user.is_authenticated %}
+                    {% if meeting.status != 'Approved' %}
+                    <button class="btn-sm btn-success" onclick="approveMeeting({{ meeting.id }})">
+                        <i class="fas fa-check"></i> Approve
+                    </button>
+                    {% endif %}
+                    {% endif %}
+
+                    <a href="/meeting/{{ meeting.id }}" class="btn-sm btn-outline">
+                        <i class="fas fa-eye"></i> View
+                    </a>
+
+                    {% if current_user.is_authenticated %}
+                    <button class="btn-sm btn-danger" onclick="deleteMeeting({{ meeting.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function approveMeeting(id) {
+        if (!confirm('Ma hubtaa inaad rabto inaad approve-gareyso kulankan?')) return;
+
+        try {
+            const res = await fetch(`/api/approve_meeting/${id}`, { method: 'POST' });
+            if (res.ok) {
+                location.reload();
+            } else {
+                alert('Error approving meeting');
+            }
+        } catch (e) {
+            alert('Network error');
+        }
+    }
+
+    async function deleteMeeting(id) {
+        if (!confirm('Ma hubtaa inaad rabto inaad tirto kulankan? (Delete Meeting)')) return;
+
+        try {
+            const res = await fetch(`/api/delete_meeting/${id}`, { method: 'POST' });
+            if (res.ok) {
+                location.reload();
+            } else {
+                alert('Error deleting meeting');
+            }
+        } catch (e) {
+            alert('Network error');
+        }
+    }
+</script>
+
+<style>
+    .date-display {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+    }
+
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge.success {
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+    }
+
+    .badge.warning {
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        color: white;
+    }
+
+    .btn-success {
+        background: var(--success-color);
+    }
+
+    .btn-outline {
+        border: 1px solid var(--glass-border);
+        color: var(--text-muted);
+    }
+
+    .btn-outline:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .btn-danger {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+        background: rgba(239, 68, 68, 0.4);
+        color: white;
+    }
+</style>
+{% endblock %}

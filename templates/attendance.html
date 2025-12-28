@@ -1,0 +1,171 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<header class="page-header">
+    <div class="header-text">
+        <h1>Xaadirinta Kooxda</h1>
+        <p>Diwaangelinta imaanshaha xubnaha Team Respect.</p>
+    </div>
+
+    <div class="header-actions">
+        <button class="btn-success" onclick="finishMeeting()">
+            <i class="fas fa-check-double"></i> Dhameystir (Finish)
+        </button>
+    </div>
+</header>
+
+<div class="attendance-card">
+    <div class="date-selector">
+        <button class="nav-btn" onclick="changeDate(-1)"><i class="fas fa-chevron-left"></i></button>
+        <div class="current-date">
+            <i class="fas fa-calendar-alt"></i>
+            <span id="dateDisplay">{{ selected_date.strftime('%B %d, %Y') }}</span>
+            <input type="date" id="dateInput" value="{{ selected_date }}" class="date-input hidden">
+        </div>
+        <button class="nav-btn" onclick="changeDate(1)"><i class="fas fa-chevron-right"></i></button>
+    </div>
+
+    <table class="attendance-table">
+        <thead>
+            <tr>
+                <th>Member</th>
+                <th class="text-center">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in members %}
+            <tr>
+                <td class="member-info">
+                    <div class="member-avatar">{{ member.name[0] }}</div>
+                    <span class="member-name">{{ member.name }}</span>
+                    {% if member.role == 'Admin' %}
+                    <span class="badge-admin">Admin</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    <div class="status-buttons">
+                        <button
+                            class="status-btn jooga {{ 'active' if attendance_map.get(member.id) == 'Jooga' else '' }}"
+                            onclick="markAttendance({{ member.id }}, 'Jooga')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button
+                            class="status-btn maqan {{ 'active' if attendance_map.get(member.id) == 'Maqan' else '' }}"
+                            onclick="markAttendance({{ member.id }}, 'Maqan')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <button
+                            class="status-btn fasax {{ 'active' if attendance_map.get(member.id) == 'Fasax' else '' }}"
+                            onclick="markAttendance({{ member.id }}, 'Fasax')">
+                            <i class="fas fa-clock"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Simple JS for this page -->
+<script>
+    async function deleteMember(id) {
+        if (!confirm('Ma hubtaa inaad rabto inaad tirto xubintan? (Delete Member)')) return;
+
+        try {
+            const res = await fetch(`/api/delete_member/${id}`, { method: 'POST' });
+            if (res.ok) {
+                // Remove row from UI
+                document.querySelector(`tr[data-id="${id}"]`).remove();
+            } else {
+                alert('Error deleting member');
+            }
+        } catch (e) {
+            alert('Network error');
+        }
+    }
+    function changeDay(delta) {
+        const dateInput = document.getElementById('attendance-date');
+        const currentDate = new Date(dateInput.value);
+        currentDate.setDate(currentDate.getDate() + delta);
+        dateInput.value = currentDate.toISOString().split('T')[0];
+        window.location.href = `/attendance?date=${dateInput.value}`;
+    }
+
+    document.getElementById('attendance-date').addEventListener('change', (e) => {
+        window.location.href = `/attendance?date=${e.target.value}`;
+    });
+
+    async function markAttendance(memberId, status) {
+        const date = document.getElementById('attendance-date').value;
+        const btnGroup = document.querySelector(`tr[data-id="${memberId}"] .attendance-actions`);
+
+        // Optimistic UI update
+        // Reset classes
+        btnGroup.querySelectorAll('.status-btn').forEach(btn => {
+            btn.classList.remove('active', 'jooga', 'maqan', 'fasax');
+        });
+
+        // Add active to clicked (we'd need more specific targeting in real app, but this is simple MVP)
+        // Actually, let's just refresh page or handle proper state, 
+        // but for premium feel let's use fetch and toggle class
+
+        // Find specific button
+        let targetBtn;
+        if (status === 'Jooga') targetBtn = btnGroup.children[0];
+        if (status === 'Maqan') targetBtn = btnGroup.children[1];
+        if (status === 'Fasax') targetBtn = btnGroup.children[2];
+
+        targetBtn.classList.add('active', status.toLowerCase());
+
+        try {
+            const res = await fetch('/api/mark_attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: memberId, status: status, date: date })
+            });
+            if (!res.ok) throw new Error('Failed');
+        } catch (e) {
+            alert('Error marking attendance');
+        }
+    }
+    async function finishMeeting(meetingId) {
+        if (!confirm('Ma hubtaa inaad rabto inaad dhameystirto kulankan? (Finish Meeting)')) return;
+
+        try {
+            const res = await fetch('/api/finish_meeting', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ meeting_id: meetingId })
+            });
+            if (res.ok) {
+                window.location.href = '/history';
+            } else {
+                alert('Error finishing meeting');
+            }
+        } catch (e) {
+            alert('Network error');
+        }
+    }
+</script>
+
+<style>
+    .btn-finish {
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        margin-left: 0.5rem;
+    }
+
+    .btn-finish:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+</style>
+{% endblock %}

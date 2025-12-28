@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="so">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Respect - Xaadirinta</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Navigation -->
+        <nav class="sidebar">
+            <div class="brand">
+                <i class="fas fa-crown"></i>
+                <span>Team Respect</span>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}"><i
+                            class="fas fa-home"></i> Home</a></li>
+
+                <li><a href="{{ url_for('stats') }}" class="{{ 'active' if request.endpoint == 'stats' else '' }}"><i
+                            class="fas fa-chart-pie"></i> Falanqeyn</a></li>
+
+                <li><a href="{{ url_for('history') }}"
+                        class="{{ 'active' if request.endpoint == 'history' else '' }}"><i class="fas fa-history"></i>
+                        History</a></li>
+
+                <li><a href="{{ url_for('members') }}"
+                        class="{{ 'active' if request.endpoint == 'members' else '' }}"><i class="fas fa-users"></i>
+                        Xubnaha</a></li>
+
+                {% if current_user.is_authenticated %}
+                <li class="nav-divider"></li>
+                <li><a href="{{ url_for('attendance') }}"
+                        class="{{ 'active' if request.endpoint == 'attendance' else '' }}"><i
+                            class="fas fa-check-double"></i> Xaadirinta</a></li>
+                {% endif %}
+            </ul>
+
+            <div class="user-profile">
+                {% if current_user.is_authenticated %}
+                <div class="user-info">
+                    <div class="avatar">A</div>
+                    <div class="details">
+                        <span class="name">{{ current_user.username }}</span>
+                        <span class="role">Admin</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn"><i class="fas fa-sign-out-alt"></i></a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn-primary w-100" style="justify-content: center;">Login</a>
+                {% endif %}
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <div class="mobile-nav">
+        <a href="{{ url_for('index') }}" class="nav-item-mobile {{ 'active' if request.endpoint == 'index' else '' }}">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="{{ url_for('stats') }}" class="nav-item-mobile {{ 'active' if request.endpoint == 'stats' else '' }}">
+            <i class="fas fa-chart-pie"></i>
+            <span>Stats</span>
+        </a>
+        <a href="{{ url_for('history') }}"
+            class="nav-item-mobile {{ 'active' if request.endpoint == 'history' else '' }}">
+            <i class="fas fa-history"></i>
+            <span>History</span>
+        </a>
+
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('attendance') }}"
+            class="nav-item-mobile {{ 'active' if request.endpoint == 'attendance' else '' }}">
+            <i class="fas fa-check-double"></i>
+            <span>Xaadirin</span>
+        </a>
+        {% else %}
+        <a href="{{ url_for('login') }}" class="nav-item-mobile">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>Login</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Add Member Modal -->
+    <div id="addMemberModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ku dar Xubin Cusub</h2>
+                <button class="close-btn" onclick="closeAddMemberModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Magaca Xubinta</label>
+                    <input type="text" id="newMemberName" placeholder="Tusaale: Maxamed Cali">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeAddMemberModal()">Cancel</button>
+                <button class="btn-primary" onclick="submitNewMember()">Save Member</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+    <script>
+        function openAddMemberModal() {
+            document.getElementById('addMemberModal').classList.remove('hidden');
+        }
+        function closeAddMemberModal() {
+            document.getElementById('addMemberModal').classList.add('hidden');
+        }
+        async function submitNewMember() {
+            const name = document.getElementById('newMemberName').value;
+            if (!name) return alert('Please enter a name');
+
+            try {
+                const res = await fetch('/api/members', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    alert('Error adding member');
+                }
+            } catch (e) {
+                alert('Network error');
+            }
+        }
+    </script>
+</body>
+
+</html>

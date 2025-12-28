@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<header class="page-header">
+    <div class="header-text">
+        <h1>Xubnaha (Members)</h1>
+        <p>Maamulka xubnaha kooxda.</p>
+    </div>
+    <div class="header-actions">
+        {% if current_user.is_authenticated %}
+        <button class="btn-primary" onclick="openAddMemberModal()">
+            <i class="fas fa-user-plus"></i> Ku dar Xubin
+        </button>
+        {% endif %}
+    </div>
+</header>
+
+<div class="attendance-card">
+    <table class="attendance-table">
+        <thead>
+            <tr>
+                <th>Magaca (Name)</th>
+                <th>Doorka (Role)</th>
+                <th>Ku biiray (Joined)</th>
+                {% if current_user.is_authenticated %}
+                <th class="text-right">Action</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in members %}
+            <tr data-id="{{ member.id }}">
+                <td class="member-info">
+                    <div class="member-avatar">{{ member.name[0] }}</div>
+                    <span class="member-name">{{ member.name }}</span>
+                </td>
+                <td>
+                    {% if member.role == 'Admin' %}
+                    <span class="badge-admin">Admin</span>
+                    {% else %}
+                    <span class="text-muted">Member</span>
+                    {% endif %}
+                </td>
+                <td class="text-muted text-sm">
+                    {{ member.joined_date.strftime('%Y-%m-%d') if member.joined_date else '-' }}
+                </td>
+                {% if current_user.is_authenticated %}
+                <td class="text-right">
+                    <button class="btn-icon danger" onclick="deleteMember({{ member.id }})">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function deleteMember(id) {
+        if (!confirm('Ma hubtaa inaad rabto inaad tirto xubintan? (Delete Member)')) return;
+
+        try {
+            const res = await fetch(`/api/delete_member/${id}`, { method: 'POST' });
+            if (res.ok) {
+                document.querySelector(`tr[data-id="${id}"]`).remove();
+            } else {
+                alert('Error deleting member');
+            }
+        } catch (e) {
+            alert('Network error');
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="home-container">
+    <div class="hero-section">
+        <h1 class="hero-title">Team Respect</h1>
+        <p class="hero-subtitle">Attendance & Management System</p>
+
+        <div class="hero-actions">
+            <a href="{{ url_for('stats') }}" class="btn-hero primary">
+                <i class="fas fa-chart-pie"></i> Falanqeyn
+            </a>
+            <a href="{{ url_for('history') }}" class="btn-hero secondary">
+                <i class="fas fa-history"></i> Taariikhda
+            </a>
+        </div>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <i class="fas fa-users feature-icon"></i>
+            <h3>Xubnaha</h3>
+            <p>View our team members and roles.</p>
+            <a href="{{ url_for('members') }}" class="feature-link">View Members <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="feature-card">
+            <i class="fas fa-chart-line feature-icon"></i>
+            <h3>Analytics</h3>
+            <p>Track attendance performance.</p>
+            <a href="{{ url_for('stats') }}" class="feature-link">View Stats <i class="fas fa-arrow-right"></i></a>
+        </div>
+
+        <div class="feature-card">
+            {% if current_user.is_authenticated %}
+            <i class="fas fa-check-double feature-icon"></i>
+            <h3>Admin</h3>
+            <p>Manage attendance and meetings.</p>
+            <a href="{{ url_for('attendance') }}" class="feature-link">Xaadirinta <i class="fas fa-arrow-right"></i></a>
+            {% else %}
+            <i class="fas fa-lock feature-icon"></i>
+            <h3>Admin Access</h3>
+            <p>Login to manage the system.</p>
+            <a href="{{ url_for('login') }}" class="feature-link">Login <i class="fas fa-arrow-right"></i></a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .home-container {
+        display: flex;
+        flex-direction: column;
+        gap: 3rem;
+        padding: 2rem 0;
+    }
+
+    .hero-section {
+        text-align: center;
+        padding: 3rem 1rem;
+        background: linear-gradient(180deg, rgba(124, 58, 237, 0.1) 0%, rgba(15, 23, 42, 0) 100%);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .hero-title {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(to right, #fff, #94a3b8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1.2rem;
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-hero {
+        padding: 0.8rem 2rem;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: transform 0.2s;
+    }
+
+    .btn-hero:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-hero.primary {
+        background: var(--primary-color);
+        color: white;
+        box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+    }
+
+    .btn-hero.secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .feature-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        padding: 2rem;
+        border-radius: 16px;
+        transition: 0.3s;
+    }
+
+    .feature-card:hover {
+        border-color: var(--primary-color);
+        transform: translateY(-5px);
+    }
+
+    .feature-icon {
+        font-size: 2rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+        background: rgba(124, 58, 237, 0.1);
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .feature-card h3 {
+        margin-bottom: 0.5rem;
+        font-size: 1.25rem;
+    }
+
+    .feature-card p {
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+    }
+
+    .feature-link {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .feature-link:hover {
+        gap: 0.8rem;
+    }
+</style>
+{% endblock %}
