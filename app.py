@@ -8,10 +8,27 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'team-respect-secret-key-123')
 
-# Database Configuration (PostgreSQL on Render, SQLite locally)
+# Database Configuration
+# 1. Try DATABASE_URL first
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///team_respect_v2.db')
+
+# 2. Fix postgres:// deprecation
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+# 3. If DATABASE_URL is not a valid connection string (e.g. it's a website link or missing), try components
+if not database_url.startswith("postgresql://") and not database_url.startswith("sqlite"):
+    db_host = os.environ.get('DB_HOST') # User needs to add this
+    db_name = os.environ.get('database')
+    db_user = os.environ.get('username')
+    db_pass = os.environ.get('password')
+    
+    if db_host and db_name and db_user and db_pass:
+        database_url = f"postgresql://{db_user}:{db_pass}@{db_host}/{db_name}"
+    else:
+        # Fallback to local sqlite if components are missing, to avoid crash
+        print("WARNING: Invalid DATABASE_URL and missing DB components. Falling back to SQLite.")
+        database_url = 'sqlite:///team_respect_v2.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
