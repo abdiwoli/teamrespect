@@ -104,14 +104,20 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
         
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('attendance'))
+        try:
+            user = User.query.filter_by(username=username).first()
+            
+            if user and user.check_password(password):
+                login_user(user)
+                return redirect(url_for('attendance'))
+            
+            flash('Invalid username or password', 'error')
         
-        flash('Invalid username or password', 'error')
-        
+        except Exception as e:
+            print(f"Login Error: {e}")
+            flash('System Error: Database connection failed. Please try again.', 'error')
+            
     return render_template('login.html')
 
 @app.route('/logout')
