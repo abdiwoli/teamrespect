@@ -16,7 +16,16 @@ if database_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
+
+@app.context_processor
+def inject_db_type():
+    is_postgres = 'postgres' in app.config['SQLALCHEMY_DATABASE_URI']
+    return dict(db_type='PostgreSQL' if is_postgres else 'SQLite (Local)')
+
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -25,7 +34,7 @@ login_manager.login_view = 'login'
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
