@@ -2,6 +2,7 @@ import os
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -10,11 +11,17 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'team-respect-secret-key
 
 # Database Configuration
 # 1. Try DATABASE_URL first
-database_url = os.environ.get('DATABASE_URL', 'sqlite:///team_respect_v2.db')
+database_url = os.environ.get('DATABASE_URL')
 
 # 2. Fix postgres:// deprecation
-if database_url.startswith("postgres://"):
+if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+# Auto-enable SSL for PostgreSQL (required for Render external connections)
+if database_url and database_url.startswith("postgresql://"):
+    if "sslmode" not in database_url:
+        separator = "&" if "?" in database_url else "?"
+        database_url += f"{separator}sslmode=require"
 
 # 3. If DATABASE_URL is not a valid connection string (e.g. it's a website link or missing), try components
 if not database_url.startswith("postgresql://") and not database_url.startswith("sqlite"):
@@ -27,8 +34,8 @@ if not database_url.startswith("postgresql://") and not database_url.startswith(
         database_url = f"postgresql://{db_user}:{db_pass}@{db_host}/{db_name}"
     else:
         # Fallback to local sqlite if components are missing, to avoid crash
-        print("WARNING: Invalid DATABASE_URL and missing DB components. Falling back to SQLite.")
-        database_url = 'sqlite:///team_respect_v2.db'
+        raise RuntimeError("CRITICAL: DATABASE_URL not set and SQLite fallback is disabled.")
+        # database_url = 'sqlite:///team_respect_v2.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -40,8 +47,7 @@ db = SQLAlchemy(app)
 
 @app.context_processor
 def inject_db_type():
-    is_postgres = 'postgres' in app.config['SQLALCHEMY_DATABASE_URI']
-    return dict(db_type='PostgreSQL' if is_postgres else 'SQLite (Local)')
+    return dict(db_type='PostgreSQL')
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -289,15 +295,30 @@ def stats():
     return render_template('stats.html', stats=stats_data, timeframe=timeframe)
 
 # --- Init DB ---
-with app.app_context():
+    # Auto-fix: Ensure password_hash is long enough (Migration)
+    try:
+        with app.app_context():
+            # Check if running on Postgres to use ALTER TABLE
+            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+                with db.engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(512);'))
+                    conn.commit()
+                    print("Fixed password_hash column length.")
+    except Exception as e:
+        print(f"Schema check skipped or failed (ignore if table doesn't exist): {e}")
+
     db.create_all()
     
-    # Create Default Admin
-    if not User.query.filter_by(username="admin").first():
-        admin = User(username="admin")
-        admin.set_password("admin123")
+    # Create Default Admin from Env
+    admin_user = os.environ.get('ADMIN_USERNAME', 'admin')
+    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+    if not User.query.filter_by(username=admin_user).first():
+        admin = User(username=admin_user)
+        admin.set_password(admin_pass)
         db.session.add(admin)
         db.session.commit()
+        print(f"Created admin user: {admin_user}")
         
     # Create dummy members if empty
     if not Member.query.first():
