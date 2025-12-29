@@ -8,9 +8,11 @@
     </div>
 
     <div class="header-actions">
+        {% if current_user.role == 'Admin' %}
         <button class="btn-success" onclick="finishMeeting()">
             <i class="fas fa-check-double"></i> Dhameystir (Finish)
         </button>
+        {% endif %}
     </div>
 </header>
 
@@ -44,6 +46,7 @@
                 </td>
                 <td class="text-center">
                     <div class="status-buttons">
+                        {% if current_user.role == 'Admin' %}
                         <button
                             class="status-btn jooga {{ 'active' if attendance_map.get(member.id) == 'Jooga' else '' }}"
                             onclick="markAttendance({{ member.id }}, 'Jooga')">
@@ -59,6 +62,18 @@
                             onclick="markAttendance({{ member.id }}, 'Fasax')">
                             <i class="fas fa-clock"></i>
                         </button>
+                        {% else %}
+                        <!-- Read Only View for Regular Users -->
+                        {% if attendance_map.get(member.id) == 'Jooga' %}
+                        <span class="badge success">Jooga</span>
+                        {% elif attendance_map.get(member.id) == 'Maqan' %}
+                        <span class="badge danger">Maqan</span>
+                        {% elif attendance_map.get(member.id) == 'Fasax' %}
+                        <span class="badge warning">Fasax</span>
+                        {% else %}
+                        <span class="badge secondary">-</span>
+                        {% endif %}
+                        {% endif %}
                     </div>
                 </td>
             </tr>

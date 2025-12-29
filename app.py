@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import text # For migration commands
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'team-respect-secret-key-123')
@@ -55,7 +56,13 @@ login_manager.login_view = 'login'
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(512), nullable=False)
+    role = db.Column(db.String(20), default='User') # Admin or User
+    role = db.Column(db.String(20), default='User') # Admin or User
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -120,6 +127,43 @@ def login():
             
     return render_template('login.html')
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    # If already logged in, go to dashboard
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not username or not password:
+            flash('Please fill all fields', 'error')
+            return render_template('register.html')
+            
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('register.html')
+
+        # Check if user exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already taken', 'error')
+        else:
+            try:
+                # Default role is User
+                new_user = User(username=username, role='User')
+                new_user.set_password(password)
+                db.session.add(new_user)
+                db.session.commit()
+                flash('Account created! Please login.', 'success')
+                return redirect(url_for('login'))
+            except Exception as e:
+                print(f"Register Error: {e}")
+                flash('Error creating account', 'error')
+
+    return render_template('register.html')
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -163,6 +207,9 @@ def history():
 @app.route('/api/mark_attendance', methods=['POST'])
 @login_required
 def mark_attendance():
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+
     data = request.json
     member_id = data.get('member_id')
     status = data.get('status')
@@ -191,6 +238,9 @@ def mark_attendance():
 @app.route('/api/members', methods=['POST'])
 @login_required
 def add_member():
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
     data = request.json
     name = data.get('name')
     if not name:
@@ -204,6 +254,8 @@ def add_member():
 @app.route('/api/delete_member/<int:member_id>', methods=['POST'])
 @login_required
 def delete_member(member_id):
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     member = Member.query.get_or_404(member_id)
     member.is_active = False
     db.session.commit()
@@ -303,11 +355,20 @@ def stats():
 try:
     with app.app_context():
         # Check if running on Postgres to use ALTER TABLE
-        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-            with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(512);'))
-                conn.commit()
-                print("Fixed password_hash column length.")
+            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+                with db.engine.connect() as conn:
+                    # 1. Fix password length
+                    conn.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(512);'))
+                    
+                    # 2. Add role column if missing
+                    try:
+                        conn.execute(text('ALTER TABLE "user" ADD COLUMN role VARCHAR(20) DEFAULT \'User\';'))
+                        print("Added role column.")
+                    except Exception:
+                        pass # Column likely exists
+                        
+                    conn.commit()
+                    print("Schema migration checked.")
 except Exception as e:
     print(f"Schema check skipped or failed (ignore if table doesn't exist): {e}")
 
@@ -320,14 +381,15 @@ with app.app_context():
 
     admin_user_obj = User.query.filter_by(username=admin_user).first()
     if not admin_user_obj:
-        admin_user_obj = User(username=admin_user)
+        admin_user_obj = User(username=admin_user, role='Admin')
         db.session.add(admin_user_obj)
         print(f"Created admin user: {admin_user}")
     
-    # Always update password to match Env Var (Self-Healing)
+    # Always update password and Ensure Role is Admin
+    admin_user_obj.role = 'Admin' # Force admin role
     admin_user_obj.set_password(admin_pass)
     db.session.commit()
-    print(f"Ensured admin password for: {admin_user}")
+    print(f"Ensured admin password and role for: {admin_user}")
         
     # Create dummy members if empty
     if not Member.query.first():

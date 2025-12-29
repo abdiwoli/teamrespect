@@ -7,7 +7,7 @@
         <p>Maamulka xubnaha kooxda.</p>
     </div>
     <div class="header-actions">
-        {% if current_user.is_authenticated %}
+        {% if current_user.role == 'Admin' %}
         <button class="btn-primary" onclick="openAddMemberModal()">
             <i class="fas fa-user-plus"></i> Ku dar Xubin
         </button>
@@ -22,7 +22,7 @@
                 <th>Magaca (Name)</th>
                 <th>Doorka (Role)</th>
                 <th>Ku biiray (Joined)</th>
-                {% if current_user.is_authenticated %}
+                {% if current_user.role == 'Admin' %}
                 <th class="text-right">Action</th>
                 {% endif %}
             </tr>
@@ -44,7 +44,7 @@
                 <td class="text-muted text-sm">
                     {{ member.joined_date.strftime('%Y-%m-%d') if member.joined_date else '-' }}
                 </td>
-                {% if current_user.is_authenticated %}
+                {% if current_user.role == 'Admin' %}
                 <td class="text-right">
                     <button class="btn-icon danger" onclick="deleteMember({{ member.id }})">
                         <i class="fas fa-trash-alt"></i>
