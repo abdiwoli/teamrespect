@@ -299,30 +299,35 @@ def stats():
     return render_template('stats.html', stats=stats_data, timeframe=timeframe)
 
 # --- Init DB ---
-    # Auto-fix: Ensure password_hash is long enough (Migration)
-    try:
-        with app.app_context():
-            # Check if running on Postgres to use ALTER TABLE
-            if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
-                with db.engine.connect() as conn:
-                    conn.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(512);'))
-                    conn.commit()
-                    print("Fixed password_hash column length.")
-    except Exception as e:
-        print(f"Schema check skipped or failed (ignore if table doesn't exist): {e}")
+# Auto-fix: Ensure password_hash is long enough (Migration)
+try:
+    with app.app_context():
+        # Check if running on Postgres to use ALTER TABLE
+        if 'postgresql' in app.config['SQLALCHEMY_DATABASE_URI']:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE "user" ALTER COLUMN password_hash TYPE VARCHAR(512);'))
+                conn.commit()
+                print("Fixed password_hash column length.")
+except Exception as e:
+    print(f"Schema check skipped or failed (ignore if table doesn't exist): {e}")
 
+with app.app_context():
     db.create_all()
     
     # Create Default Admin from Env
     admin_user = os.environ.get('ADMIN_USERNAME', 'admin')
     admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
-    if not User.query.filter_by(username=admin_user).first():
-        admin = User(username=admin_user)
-        admin.set_password(admin_pass)
-        db.session.add(admin)
-        db.session.commit()
+    admin_user_obj = User.query.filter_by(username=admin_user).first()
+    if not admin_user_obj:
+        admin_user_obj = User(username=admin_user)
+        db.session.add(admin_user_obj)
         print(f"Created admin user: {admin_user}")
+    
+    # Always update password to match Env Var (Self-Healing)
+    admin_user_obj.set_password(admin_pass)
+    db.session.commit()
+    print(f"Ensured admin password for: {admin_user}")
         
     # Create dummy members if empty
     if not Member.query.first():
