@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
@@ -9,6 +12,9 @@ from sqlalchemy import text # For migration commands
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'team-respect-secret-key-123')
+# Initialize SocketIO
+from flask_socketio import SocketIO, emit, join_room, leave_room
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # Database Configuration
 # 1. Try DATABASE_URL first
@@ -24,6 +30,7 @@ if database_url and database_url.startswith("postgresql://"):
         separator = "&" if "?" in database_url else "?"
         database_url += f"{separator}sslmode=require"
 
+# 3. If DATABASE_URL is not a valid connection string (e.g. it's a website link or missing), try components
 # 3. If DATABASE_URL is not a valid connection string (e.g. it's a website link or missing), try components
 if not database_url.startswith("postgresql://") and not database_url.startswith("sqlite"):
     db_host = os.environ.get('DB_HOST') # User needs to add this
@@ -73,7 +80,6 @@ class User(UserMixin, db.Model):
 class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), default='Member')
     is_active = db.Column(db.Boolean, default=True)
     joined_date = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -280,6 +286,8 @@ def finish_meeting():
 @app.route('/api/approve_meeting/<int:meeting_id>', methods=['POST'])
 @login_required
 def approve_meeting(meeting_id):
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     meeting = Meeting.query.get_or_404(meeting_id)
     meeting.status = 'Approved'
     db.session.commit()
@@ -288,6 +296,8 @@ def approve_meeting(meeting_id):
 @app.route('/api/delete_meeting/<int:meeting_id>', methods=['POST'])
 @login_required
 def delete_meeting(meeting_id):
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     meeting = Meeting.query.get_or_404(meeting_id)
     # Delete associated attendance records first
     Attendance.query.filter_by(meeting_id=meeting.id).delete()
@@ -350,7 +360,230 @@ def stats():
     
     return render_template('stats.html', stats=stats_data, timeframe=timeframe)
 
-# --- Init DB ---
+# --- User Management (Open for Testing) ---
+
+# --- User Management (Protected) ---
+
+@app.route('/users')
+@login_required
+def users_page():
+    if current_user.role != 'Admin':
+         return redirect(url_for('index'))
+         
+    users = User.query.order_by(User.username).all()
+    return render_template('users.html', users=users)
+
+@app.route('/api/users', methods=['POST'])
+@login_required
+def create_user_api():
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role', 'User')
+
+    if not username or not password:
+        return jsonify({'error': 'Missing fields'}), 400
+        
+    if User.query.filter_by(username=username).first():
+        return jsonify({'error': 'Username taken'}), 400
+        
+    new_user = User(username=username, role=role)
+    new_user.set_password(password)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/users/<int:user_id>/role', methods=['POST'])
+@login_required
+def update_user_role(user_id):
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.json
+    new_role = data.get('role')
+    
+    user = User.query.get_or_404(user_id)
+    user.role = new_role
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@login_required
+def delete_user_api(user_id):
+    if current_user.role != 'Admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+# --- Game / Live Room Logic ---
+
+# In-memory storage for active rooms
+# Structure: { room_id: { 'host': username, 'viewers': set(), 'created_at': datetime } }
+GAME_ROOMS = {}
+
+@app.route('/game')
+@login_required
+def lobby():
+    # Convert sets to counts for template rendering
+    active_rooms = {}
+    for rid, r in GAME_ROOMS.items():
+        active_rooms[rid] = {
+            'host': r['host'],
+            'viewers': len(r['viewers']),
+            'created_at': r['created_at']
+        }
+    return render_template('lobby.html', rooms=active_rooms)
+
+@app.route('/game/create', methods=['POST'])
+@login_required
+def create_room():
+    room_id = current_user.username 
+    
+    if room_id not in GAME_ROOMS:
+        GAME_ROOMS[room_id] = {
+            'host': current_user.username,
+            'viewers': set(),
+            'created_at': datetime.now()
+        }
+        # Notify lobby
+        socketio.emit('update_lobby', {
+            'room_id': room_id,
+            'host': current_user.username,
+            'viewers': 0,
+            'action': 'add'
+        }, room='lobby')
+    
+    return redirect(url_for('game_room', room_id=room_id))
+
+@app.route('/game/<room_id>')
+@login_required
+def game_room(room_id):
+    room = GAME_ROOMS.get(room_id)
+    
+    if not room:
+        if room_id == current_user.username:
+             GAME_ROOMS[room_id] = {
+                'host': current_user.username,
+                'viewers': set(),
+                'created_at': datetime.now()
+            }
+             room = GAME_ROOMS[room_id]
+             # Notify lobby
+             socketio.emit('update_lobby', {
+                'room_id': room_id,
+                'host': current_user.username,
+                'viewers': 0,
+                'action': 'add'
+             }, room='lobby')
+        else:
+            flash("Room does not exist or has ended.", "warning")
+            return redirect(url_for('lobby'))
+            
+    is_host = (current_user.username == room['host'])
+    
+    # Pass a dict copy to template mainly for 'host' check
+    room_data = {
+        'host': room['host'],
+        'viewers': len(room['viewers'])
+    }
+    
+    return render_template('game.html', user=current_user, room=room_data, room_id=room_id, is_host=is_host)
+
+# --- SocketIO Events ---
+@socketio.on('connect')
+def handle_connect():
+    pass
+
+@socketio.on('join_lobby')
+def handle_join_lobby():
+    join_room('lobby')
+
+@socketio.on('join_game')
+def handle_join_game(data):
+    room_id = data.get('room_id')
+    if not room_id:
+        return
+        
+    join_room(room_id)
+    
+    is_host = False
+    if room_id in GAME_ROOMS:
+        GAME_ROOMS[room_id]['viewers'].add(current_user.username)
+        is_host = (current_user.username == GAME_ROOMS[room_id]['host'])
+        
+        # Update lobby count
+        socketio.emit('update_lobby', {
+            'room_id': room_id,
+            'viewers': len(GAME_ROOMS[room_id]['viewers']),
+            'action': 'update'
+        }, room='lobby')
+        
+    # Broadcast join
+    emit('user_joined', {
+        'username': current_user.username,
+        'peerId': data.get('peerId'),
+        'isHost': is_host,
+        'isAudioOnly': data.get('isAudioOnly', False)
+    }, room=room_id, include_self=False)
+
+@socketio.on('request_join')
+def handle_request_join(data):
+    room_id = data.get('room_id')
+    emit('new_join_request', {
+        'username': current_user.username,
+        'peerId': data.get('peerId'),
+        'userId': current_user.id
+    }, room=room_id)
+
+@socketio.on('approve_request')
+def handle_approve_request(data):
+    room_id = data.get('room_id')
+    emit('request_approved', {
+        'approved': True,
+        'targetPeerId': data.get('targetPeerId') 
+    }, room=room_id)
+
+@socketio.on('invite_user')
+def handle_invite_user(data):
+    room_id = data.get('room_id')
+    emit('receive_invite', {
+        'hostName': current_user.username
+    }, room=room_id) 
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    # Find rooms where user is host
+    to_remove = []
+    username = current_user.username if current_user.is_authenticated else None
+    
+    if username:
+        for rid, room in GAME_ROOMS.items():
+            # If Host Disconnects -> Kill Room
+            if room['host'] == username:
+                to_remove.append(rid)
+            # If Viewer Disconnects -> Remove from set
+            elif username in room['viewers']:
+                room['viewers'].remove(username)
+                socketio.emit('update_lobby', {
+                    'room_id': rid,
+                    'viewers': len(room['viewers']),
+                    'action': 'update'
+                }, room='lobby')
+
+    for rid in to_remove:
+        del GAME_ROOMS[rid]
+        socketio.emit('update_lobby', {
+            'room_id': rid,
+            'action': 'remove'
+        }, room='lobby')
+
 # Auto-fix: Ensure password_hash is long enough (Migration)
 try:
     with app.app_context():
@@ -375,29 +608,8 @@ except Exception as e:
 with app.app_context():
     db.create_all()
     
-    # Create Default Admin from Env
-    admin_user = os.environ.get('ADMIN_USERNAME', 'admin')
-    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin123')
-
-    admin_user_obj = User.query.filter_by(username=admin_user).first()
-    if not admin_user_obj:
-        admin_user_obj = User(username=admin_user, role='Admin')
-        db.session.add(admin_user_obj)
-        print(f"Created admin user: {admin_user}")
-    
-    # Always update password and Ensure Role is Admin
-    admin_user_obj.role = 'Admin' # Force admin role
-    admin_user_obj.set_password(admin_pass)
-    db.session.commit()
-    print(f"Ensured admin password and role for: {admin_user}")
-        
-    # Create dummy members if empty
-    if not Member.query.first():
-        db.session.add(Member(name="Cali", role="Member"))
-        db.session.add(Member(name="Faarax", role="Member"))
-        db.session.add(Member(name="Xaawo", role="Member"))
-        db.session.commit()
+    pass
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    socketio.run(app, debug=True, port=5001)
 

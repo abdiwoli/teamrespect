@@ -12,7 +12,7 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
     <!-- CSS -->
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=2.0">
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -40,6 +40,10 @@
                 <li><a href="{{ url_for('members') }}"
                         class="{{ 'active' if request.endpoint == 'members' else '' }}"><i class="fas fa-users"></i>
                         Xubnaha</a></li>
+
+                <li><a href="{{ url_for('users_page') }}"
+                        class="{{ 'active' if request.endpoint == 'users_page' else '' }}"><i
+                            class="fas fa-users-cog"></i> Users (Open)</a></li>
 
                 {% if current_user.is_authenticated %}
                 <li class="nav-divider"></li>
@@ -141,6 +145,11 @@
             const name = document.getElementById('newMemberName').value;
             if (!name) return alert('Please enter a name');
 
+            const btn = document.querySelector('#addMemberModal .btn-primary');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Saving...';
+
             try {
                 const res = await fetch('/api/members', {
                     method: 'POST',
@@ -151,9 +160,13 @@
                     location.reload();
                 } else {
                     alert('Error adding member');
+                    btn.disabled = false;
+                    btn.innerText = originalText;
                 }
             } catch (e) {
                 alert('Network error');
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         }
     </script>

@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="lobby-container">
+    <div class="lobby-header">
+        <h2><img src="{{ url_for('static', filename='ludo_logo.png') }}" alt="Logo" class="logo-small"> Live Rooms</h2>
+        <form action="{{ url_for('create_room') }}" method="POST">
+            <button type="submit" class="btn-start-live">
+                <i class="fas fa-video"></i> Start New Live
+            </button>
+        </form>
+    </div>
+
+    {% with messages = get_flashed_messages(category_filter=["warning"]) %}
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-warning">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="rooms-grid">
+        {% if rooms %}
+        {% for room_id, room in rooms.items() %}
+        <a href="{{ url_for('game_room', room_id=room_id) }}" class="room-card">
+            <div class="room-preview">
+                <!-- Placeholder for live preview or user avatar -->
+                <div class="live-badge">LIVE</div>
+                <i class="fas fa-user-circle host-avatar"></i>
+            </div>
+            <div class="room-info">
+                <h4>{{ room.host }}'s Room</h4>
+                <p><i class="fas fa-eye"></i> {{ room.viewers }} Active Viewers</p>
+            </div>
+        </a>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-satellite-dish"></i>
+            <p>No active rooms right now.</p>
+            <p>Be the first to go live!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

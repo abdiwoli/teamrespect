@@ -1,0 +1,375 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="live-room-container">
+    <!-- Header / Overlay -->
+    <div class="live-header">
+        <div class="host-info">
+            <img src="{{ url_for('static', filename='ludo_logo.png') }}" class="live-logo" alt="Ludo">
+            <div class="live-text">
+                <h3>Ludo Game Live</h3>
+                <span class="badg-live">LIVE</span>
+            </div>
+        </div>
+        <div class="viewer-count">
+            <i class="fas fa-eye"></i> <span id="view-count">1</span>
+        </div>
+    </div>
+
+    <!-- Notifications area -->
+    <div id="notification-area"></div>
+
+    <!-- Main Live Area -->
+    <div class="live-stage">
+        <!-- Host Section (Dominant) -->
+        <div class="host-container" id="host-container">
+            <div class="video-placeholder">
+                <i class="fas fa-crown"></i>
+                <p>Waiting for Host...</p>
+            </div>
+            <!-- Video will be injected here -->
+        </div>
+
+        <!-- Guest Grid (8 Slots) -->
+        <div class="guest-grid" id="guest-grid">
+            {% for i in range(8) %}
+            <div class="guest-slot" data-index="{{ i }}">
+                <div class="avatar-circle">
+                    <i class="fas fa-user"></i>
+                </div>
+                <!-- <span class="username">Empty</span> -->
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="live-controls">
+        <button id="btn-mic" class="control-btn active" onclick="toggleMic()"><i class="fas fa-microphone"></i></button>
+        <button id="btn-cam" class="control-btn active" onclick="toggleCam()"><i class="fas fa-video"></i></button>
+
+        {% if is_host %}
+        <button id="btn-invite" class="control-btn invite-btn" onclick="openInviteModal()"><i
+                class="fas fa-user-plus"></i> Invite</button>
+        <div id="request-indicator" class="request-badge hidden" onclick="showRequests()">0</div>
+        {% else %}
+        <!-- Initial State: Join / Request -->
+        <button id="btn-join" class="control-btn join-btn" onclick="requestJoin()">Request to Join</button>
+        {% endif %}
+    </div>
+
+    <!-- Modals -->
+    <!-- Invite Modal -->
+    <div id="invite-modal" class="modal hidden">
+        <div class="modal-content">
+            <h4>Invite Viewers to Speak</h4>
+            <ul id="viewer-list">
+                <!-- Populate via JS -->
+                <li>No active viewers found.</li>
+            </ul>
+            <button onclick="closeModal('invite-modal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Requests Modal (Host Only) -->
+    <div id="requests-modal" class="modal hidden">
+        <div class="modal-content">
+            <h4>Join Requests</h4>
+            <ul id="request-list">
+                <!-- Populate via JS -->
+            </ul>
+            <button onclick="closeModal('requests-modal')">Close</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<script>
+    const socket = io();
+    let myPeerId = null;
+    let peer = null;
+    let myStream = null;
+    const peers = {};
+    const isHost = {{ 'true' if is_host else 'false' }};
+    const currentUsername = "{{ user.username }}";
+    const roomId = "{{ room_id }}";
+    let isCameraOn = true;
+    let isMicOn = true;
+
+    // --- Media Controls ---
+    function toggleMic() {
+        if (myStream) {
+            const track = myStream.getAudioTracks()[0];
+            track.enabled = !track.enabled;
+            isMicOn = track.enabled;
+        } else {
+            isMicOn = !isMicOn; // Toggle state before stream starts
+        }
+        document.getElementById('btn-mic').classList.toggle('off', !isMicOn);
+    }
+
+    function toggleCam() {
+        if (myStream) {
+            const track = myStream.getVideoTracks()[0];
+            track.enabled = !track.enabled;
+            isCameraOn = track.enabled;
+            // Send update to peers? (Complexity: High, skipped for now, just local mute)
+        } else {
+            isCameraOn = !isCameraOn;
+        }
+        document.getElementById('btn-cam').classList.toggle('off', !isCameraOn);
+    }
+
+    // --- PeerJS Init ---
+    peer = new Peer(undefined, { debug: 2 });
+
+    peer.on('open', id => {
+        myPeerId = id;
+        console.log('My peer ID is: ' + id);
+
+        // Everyone joins the socket room immediately!
+        socket.emit('join_game', {
+            peerId: myPeerId,
+            username: currentUsername,
+            room_id: roomId,
+            isAudioOnly: true // Default starting state for Guest
+        });
+
+        // Auto-start stream if Host
+        if (isHost) {
+            console.log("I am Host, starting stream...");
+            startStream();
+        }
+
+        socket.emit('connect_user', { username: currentUsername });
+    });
+
+    peer.on('call', call => {
+        if (myStream) {
+            call.answer(myStream);
+            handleCall(call);
+        } else {
+            // If receiving call but not streaming, we answer to receive stream
+            call.answer();
+            handleCall(call);
+        }
+    });
+
+    // --- Socket Events ---
+    socket.on('user_joined', data => {
+        console.log("User Joined Stream:", data);
+        if (myStream) {
+            // If I am streaming, I call the new guy
+            connectToNewUser(data.peerId, myStream, data);
+        }
+    });
+
+    socket.on('new_join_request', data => {
+        if (isHost) {
+            addRequestToQueue(data);
+            showNotification(`New request from ${data.username}`);
+        }
+    });
+
+    socket.on('request_approved', data => {
+        if (!isHost && !myStream) {
+            // Ideally valid check: if (data.targetPeerId == myPeerId)
+            startStream();
+            showNotification("Host accepted you! Joining...");
+        }
+    });
+
+    socket.on('receive_invite', data => {
+        if (!myStream && !isHost) {
+            if (confirm(`Host ${data.hostName} invited you to join. Accept?`)) {
+                startStream();
+            }
+        }
+    });
+
+    // --- Logic ---
+    function requestJoin() {
+        if (!myPeerId) return alert("Connection not ready yet");
+        document.getElementById('btn-join').innerText = "Requested...";
+        document.getElementById('btn-join').disabled = true;
+
+        socket.emit('request_join', { peerId: myPeerId, username: currentUsername, room_id: roomId });
+    }
+
+    function startStream() {
+        // Constraints based on pre-selection
+        const constraints = {
+            video: isCameraOn,
+            audio: true
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+            myStream = stream;
+            // Mute local tracks if user pre-muted
+            stream.getAudioTracks()[0].enabled = isMicOn;
+            if (stream.getVideoTracks().length > 0) stream.getVideoTracks()[0].enabled = isCameraOn;
+
+            addVideoStream(stream, isHost, currentUsername, myPeerId, true, !isCameraOn);
+
+            // Hide join button if exists
+            const btn = document.getElementById('btn-join');
+            if (btn) btn.style.display = 'none';
+
+            // Announce presence
+            socket.emit('join_game', {
+                peerId: myPeerId,
+                isAudioOnly: !isCameraOn,
+                username: currentUsername,
+                room_id: roomId
+            });
+
+        }).catch(err => {
+            console.error('Failed to get stream', err);
+            alert("Could not access devices. " + err);
+        });
+    }
+
+    function connectToNewUser(userId, stream, userData) {
+        // Send our identity (e.g. Host status) to the new user
+        const options = {
+            metadata: {
+                isHost: isHost,
+                username: currentUsername,
+                isAudioOnly: !isCameraOn
+            }
+        };
+        const call = peer.call(userId, stream, options);
+        handleCall(call, userData);
+    }
+
+    function handleCall(call, userData) {
+        const video = document.createElement('video');
+
+        // Determine remote user details
+        // If userData exists, we initiated the call (User Joined Event)
+        // If not, we received the call, so check call.metadata
+        const remoteIsHost = userData ? userData.isHost : (call.metadata && call.metadata.isHost);
+        const remoteUsername = userData ? userData.username : (call.metadata && call.metadata.username);
+        const remoteIsAudio = userData ? userData.isAudioOnly : (call.metadata && call.metadata.isAudioOnly);
+
+        call.on('stream', userVideoStream => {
+            addVideoStream(userVideoStream, remoteIsHost, remoteUsername, call.peer, false, remoteIsAudio);
+        });
+        call.on('close', () => {
+            video.remove();
+            // Also remove from DOM if added logic needed?
+            // addVideoStream logic appends to container, we might need a cleanup helper, 
+            // but for now container.innerHTML = '' in addVideoStream handles reuse.
+            // Ideally we find the specific video element but basic removal helps garbage collect.
+        });
+        peers[call.peer] = call;
+    }
+
+    function addVideoStream(stream, isHost, username, peerId, isLocal = false, isAudioOnly = false) {
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.addEventListener('loadedmetadata', () => {
+            video.play();
+        });
+        video.muted = isLocal;
+
+        // Container logic
+        let container = null;
+        let labelText = username || "Guest";
+
+        if (isHost) {
+            container = document.getElementById('host-container');
+            container.innerHTML = '';
+            container.appendChild(video);
+        } else {
+            // Find empty slot
+            const slots = document.querySelectorAll('.guest-slot');
+            for (let slot of slots) {
+                if (!slot.querySelector('video') && !slot.classList.contains('occupied')) {
+                    container = slot;
+                    container.innerHTML = '';
+                    container.appendChild(video);
+                    container.classList.add('occupied');
+                    break;
+                }
+            }
+        }
+
+        if (container) {
+            // Label
+            const label = document.createElement('div');
+            label.className = 'video-label';
+            label.innerText = labelText;
+            container.appendChild(label);
+
+            // Audio Only Avatar placeholder
+            if (isAudioOnly || stream.getVideoTracks().length === 0) {
+                video.style.opacity = 0; // Hide black video
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar-circle large';
+                avatar.innerHTML = '<i class="fas fa-user"></i>';
+                // Centering logic via CSS needed or inline
+                avatar.style.position = 'absolute';
+                avatar.style.zIndex = 1;
+                container.appendChild(avatar);
+            }
+        }
+    }
+
+    // --- UI/Modal Helpers ---
+    function openInviteModal() {
+        document.getElementById('invite-modal').classList.remove('hidden');
+        // In real app, socket.emit('get_viewers') and populate
+        // Mock for now:
+        const list = document.getElementById('viewer-list');
+        list.innerHTML = `<li><button onclick="sendInvite('Guest')">Invite All Guests (Demo)</button></li>`;
+    }
+
+    function sendInvite(username) {
+        socket.emit('invite_user', { username: username, room_id: roomId });
+        closeModal('invite-modal');
+        showNotification("Invite sent!");
+    }
+
+    function addRequestToQueue(data) {
+        const indicator = document.getElementById('request-indicator');
+        indicator.classList.remove('hidden');
+        indicator.innerText = parseInt(indicator.innerText) + 1;
+
+        const list = document.getElementById('request-list');
+        const item = document.createElement('li');
+        item.innerHTML = `${data.username} wants to join <button onclick="approveRequest('${data.peerId}')">Accept</button>`;
+        list.appendChild(item);
+    }
+
+    function approveRequest(peerId) {
+        socket.emit('approve_request', { targetPeerId: peerId, room_id: roomId });
+        closeModal('requests-modal');
+        // Clear list/indicator logic simplified
+        document.getElementById('request-indicator').innerText = '0';
+        document.getElementById('request-indicator').classList.add('hidden');
+        document.getElementById('request-list').innerHTML = '';
+    }
+
+    function showRequests() {
+        document.getElementById('requests-modal').classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+
+    function showNotification(msg) {
+        const n = document.getElementById('notification-area');
+        const div = document.createElement('div');
+        div.className = 'notif-toast';
+        div.innerText = msg;
+        n.appendChild(div);
+        setTimeout(() => div.remove(), 4000);
+    }
+
+</script>
+{% endblock %}

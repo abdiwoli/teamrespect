@@ -20,7 +20,6 @@
         <thead>
             <tr>
                 <th>Magaca (Name)</th>
-                <th>Doorka (Role)</th>
                 <th>Ku biiray (Joined)</th>
                 {% if current_user.role == 'Admin' %}
                 <th class="text-right">Action</th>
@@ -34,12 +33,6 @@
                     <div class="member-avatar">{{ member.name[0] }}</div>
                     <span class="member-name">{{ member.name }}</span>
                 </td>
-                <td>
-                    {% if member.role == 'Admin' %}
-                    <span class="badge-admin">Admin</span>
-                    {% else %}
-                    <span class="text-muted">Member</span>
-                    {% endif %}
                 </td>
                 <td class="text-muted text-sm">
                     {{ member.joined_date.strftime('%Y-%m-%d') if member.joined_date else '-' }}

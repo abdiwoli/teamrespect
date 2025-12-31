@@ -36,30 +36,27 @@
         </thead>
         <tbody>
             {% for member in members %}
-            <tr>
+            <tr data-id="{{ member.id }}">
                 <td class="member-info">
                     <div class="member-avatar">{{ member.name[0] }}</div>
                     <span class="member-name">{{ member.name }}</span>
-                    {% if member.role == 'Admin' %}
-                    <span class="badge-admin">Admin</span>
-                    {% endif %}
                 </td>
                 <td class="text-center">
                     <div class="status-buttons">
                         {% if current_user.role == 'Admin' %}
                         <button
                             class="status-btn jooga {{ 'active' if attendance_map.get(member.id) == 'Jooga' else '' }}"
-                            onclick="markAttendance({{ member.id }}, 'Jooga')">
+                            onclick="selectStatus({{ member.id }}, 'Jooga')">
                             <i class="fas fa-check"></i>
                         </button>
                         <button
                             class="status-btn maqan {{ 'active' if attendance_map.get(member.id) == 'Maqan' else '' }}"
-                            onclick="markAttendance({{ member.id }}, 'Maqan')">
+                            onclick="selectStatus({{ member.id }}, 'Maqan')">
                             <i class="fas fa-times"></i>
                         </button>
                         <button
                             class="status-btn fasax {{ 'active' if attendance_map.get(member.id) == 'Fasax' else '' }}"
-                            onclick="markAttendance({{ member.id }}, 'Fasax')">
+                            onclick="selectStatus({{ member.id }}, 'Fasax')">
                             <i class="fas fa-clock"></i>
                         </button>
                         {% else %}
@@ -80,6 +77,15 @@
             {% endfor %}
         </tbody>
     </table>
+
+    {% if current_user.role == 'Admin' %}
+    <div class="footer-actions"
+        style="padding: 1rem; display: flex; justify-content: flex-end; border-top: 1px solid var(--glass-border);">
+        <button id="submitAttendanceBtn" class="btn-primary" onclick="submitAttendance()">
+            <i class="fas fa-save"></i> Save Attendance
+        </button>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Simple JS for this page -->
@@ -100,48 +106,103 @@
         }
     }
     function changeDay(delta) {
-        const dateInput = document.getElementById('attendance-date');
+        const dateInput = document.getElementById('dateInput');
         const currentDate = new Date(dateInput.value);
         currentDate.setDate(currentDate.getDate() + delta);
         dateInput.value = currentDate.toISOString().split('T')[0];
         window.location.href = `/attendance?date=${dateInput.value}`;
     }
 
-    document.getElementById('attendance-date').addEventListener('change', (e) => {
+    document.getElementById('dateInput').addEventListener('change', (e) => {
         window.location.href = `/attendance?date=${e.target.value}`;
     });
 
-    async function markAttendance(memberId, status) {
-        const date = document.getElementById('attendance-date').value;
-        const btnGroup = document.querySelector(`tr[data-id="${memberId}"] .attendance-actions`);
+    // Store selected statuses in memory
+    const changes = {};
 
-        // Optimistic UI update
-        // Reset classes
-        btnGroup.querySelectorAll('.status-btn').forEach(btn => {
-            btn.classList.remove('active', 'jooga', 'maqan', 'fasax');
+    function selectStatus(memberId, status) {
+        console.log("Selecting:", memberId, status);
+        // Find the specific row for this member
+        const row = document.querySelector(`tr[data-id="${memberId}"]`);
+        if (!row) {
+            console.error("Row not found for member:", memberId);
+            return;
+        }
+
+        const btnGroup = row.querySelector('.status-buttons');
+        if (!btnGroup) {
+            console.error("Button group not found in row:", memberId);
+            return;
+        }
+
+        // Deactivate all buttons ONLY in this specific group
+        const buttons = btnGroup.querySelectorAll('.status-btn');
+        buttons.forEach(btn => {
+            btn.classList.remove('active');
         });
 
-        // Add active to clicked (we'd need more specific targeting in real app, but this is simple MVP)
-        // Actually, let's just refresh page or handle proper state, 
-        // but for premium feel let's use fetch and toggle class
+        // Activate the target button
+        const statusClass = status.toLowerCase();
+        const targetBtn = btnGroup.querySelector(`.${statusClass}`);
+        if (targetBtn) {
+            targetBtn.classList.add('active');
+            console.log("Activated button:", statusClass);
+        } else {
+            console.error("Target button not found:", statusClass);
+        }
 
-        // Find specific button
-        let targetBtn;
-        if (status === 'Jooga') targetBtn = btnGroup.children[0];
-        if (status === 'Maqan') targetBtn = btnGroup.children[1];
-        if (status === 'Fasax') targetBtn = btnGroup.children[2];
+        // Record change
+        changes[memberId] = status;
 
-        targetBtn.classList.add('active', status.toLowerCase());
+        // Enable Save Button visual feedback if needed
+        const saveBtn = document.getElementById('submitAttendanceBtn');
+        if (saveBtn) saveBtn.innerText = "Save Changes *";
+    }
+
+    async function submitAttendance() {
+        const date = document.getElementById('dateInput').value;
+        const btn = document.getElementById('submitAttendanceBtn');
+
+        const payload = [];
+
+        // Find all rows
+        document.querySelectorAll('tr[data-id]').forEach(row => {
+            const memberId = row.getAttribute('data-id');
+            // Find active button
+            const activeBtn = row.querySelector('.status-btn.active');
+            let status = null;
+            if (activeBtn) {
+                if (activeBtn.classList.contains('jooga')) status = 'Jooga';
+                if (activeBtn.classList.contains('maqan')) status = 'Maqan';
+                if (activeBtn.classList.contains('fasax')) status = 'Fasax';
+            }
+
+            if (status) {
+                payload.push({ member_id: memberId, status: status });
+            }
+        });
+
+        if (payload.length === 0) return alert("No attendance marked.");
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
         try {
-            const res = await fetch('/api/mark_attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: memberId, status: status, date: date })
+            const promises = payload.map(item => {
+                return fetch('/api/mark_attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ member_id: item.member_id, status: item.status, date: date })
+                });
             });
-            if (!res.ok) throw new Error('Failed');
+
+            await Promise.all(promises);
+            location.reload();
+
         } catch (e) {
-            alert('Error marking attendance');
+            alert('Error saving attendance');
+            btn.disabled = false;
+            btn.innerText = 'Save Attendance';
         }
     }
     async function finishMeeting(meetingId) {

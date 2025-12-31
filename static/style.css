@@ -432,19 +432,29 @@ body {
     border: none;
     color: white;
     font-weight: 600;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: scale(1.05);
+    /* Make it pop */
+    z-index: 1;
+    /* Bring to front */
 }
 
 .status-btn.active.jooga {
     background: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
 }
 
 .status-btn.active.maqan {
     background: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
 }
 
 .status-btn.active.fasax {
     background: var(--warning-color);
+    border-color: var(--warning-color);
+    color: white;
 }
 
 .status-btn i {
@@ -477,6 +487,191 @@ body {
 .btn-icon.danger:hover {
     background: rgba(239, 68, 68, 0.2);
     color: var(--danger-color);
+}
+
+/* --- Live Room Styles --- */
+.live-room-container {
+    background: #000;
+    color: white;
+    min-height: calc(100vh - 60px);
+    /* Adjust based on navbar */
+    position: relative;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.live-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 0.8rem 1.2rem;
+    border-radius: 50px;
+}
+
+.host-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.live-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.badg-live {
+    background: #ff0050;
+    /* TikTok Red */
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.live-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex-grow: 1;
+}
+
+/* Host Container: 16:9 Aspect Ratio */
+.host-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #1a1a1a;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #2af0ea;
+    /* TikTok Cyan */
+}
+
+.host-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #666;
+}
+
+.video-label {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* Guest Grid: 2 Rows of 4 */
+.guest-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.guest-slot {
+    aspect-ratio: 9 / 16;
+    /* Portrait slots */
+    background: #222;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.guest-slot video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.guest-slot .avatar-circle {
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 5px;
+    z-index: 1;
+    /* Above video if video missing */
+}
+
+.guest-slot .username {
+    font-size: 0.7rem;
+    z-index: 1;
+}
+
+.live-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: auto;
+    padding-top: 1rem;
+}
+
+.control-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: #333;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.control-btn.join-btn {
+    width: auto;
+    border-radius: 24px;
+    padding: 0 24px;
+    background: #FE2C55;
+    font-weight: bold;
+}
+
+.control-btn.off {
+    background: #ff4747;
+    position: relative;
+}
+
+.control-btn.off::after {
+    content: '/';
+    position: absolute;
+    font-size: 20px;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+    .guest-grid {
+        grid-template-columns: repeat(3, 1fr);
+        /* 3 per row on mobile to fit better? or 4 is too sqeezed */
+    }
 }
 
 /* --- Mobile Responsiveness --- */
@@ -570,13 +765,450 @@ body {
 
     /* Modal Adjustments */
     .modal-content {
-        margin: 20% auto;
-        width: 90%;
-    }
-}
+        .video-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
 
-@media (min-width: 769px) {
-    .mobile-nav {
-        display: none;
-    }
-}
+        /* Guest Grid: 2 Rows of 4 */
+        .guest-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .guest-slot {
+            aspect-ratio: 9 / 16;
+            /* Portrait slots */
+            background: #222;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .guest-slot video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .guest-slot .avatar-circle {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 5px;
+            z-index: 1;
+            /* Above video if video missing */
+        }
+
+        .guest-slot .username {
+            font-size: 0.7rem;
+            z-index: 1;
+        }
+
+        .live-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: auto;
+            padding-top: 1rem;
+        }
+
+        .control-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: #333;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-btn.join-btn {
+            width: auto;
+            border-radius: 24px;
+            padding: 0 24px;
+            background: #FE2C55;
+            font-weight: bold;
+        }
+
+        .control-btn.off {
+            background: #ff4747;
+            position: relative;
+        }
+
+        .control-btn.off::after {
+            content: '/';
+            position: absolute;
+            font-size: 20px;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 600px) {
+            .guest-grid {
+                grid-template-columns: repeat(3, 1fr);
+                /* 3 per row on mobile to fit better? or 4 is too sqeezed */
+            }
+        }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 768px) {
+
+            /* Layout Adjustments */
+            .sidebar {
+                display: none;
+                /* Hide sidebar on mobile */
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+                padding-bottom: 80px;
+                /* Space for bottom nav */
+            }
+
+            /* Bottom Navigation */
+            .mobile-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(15, 23, 42, 0.95);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid var(--glass-border);
+                padding: 0.5rem 1rem;
+                justify-content: space-around;
+                align-items: center;
+                z-index: 1000;
+            }
+
+            .nav-item-mobile {
+                color: var(--text-muted);
+                text-decoration: none;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                font-size: 0.75rem;
+                gap: 4px;
+                padding: 0.5rem;
+                border-radius: 8px;
+            }
+
+            .nav-item-mobile i {
+                font-size: 1.25rem;
+            }
+
+            .nav-item-mobile.active {
+                color: var(--primary-color);
+            }
+
+            .nav-item-mobile.active i {
+                background: rgba(124, 58, 237, 0.2);
+                padding: 6px;
+                border-radius: 50%;
+            }
+
+            /* Responsive Tables */
+            .attendance-card {
+                padding: 1rem;
+                overflow-x: auto;
+            }
+
+            .attendance-table th,
+            .attendance-table td {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+                white-space: nowrap;
+            }
+
+            /* Header Adjustments */
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .header-actions {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 5px;
+            }
+
+            /* Filter Group on Mobile */
+            .filter-group {
+                width: max-content;
+            }
+
+            /* Modal Adjustments */
+            .modal-content {
+                margin: 20% auto;
+                width: 90%;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-nav {
+                display: none;
+            }
+        }
+
+        /* --- Lobby Styles --- */
+        .lobby-container {
+            padding: 2rem;
+            color: white;
+            /* Assuming dark theme bg from body */
+        }
+
+        .lobby-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-small {
+            width: 30px;
+            height: 30px;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        .btn-start-live {
+            background: #FE2C55;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-start-live:hover {
+            transform: scale(1.05);
+        }
+
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .room-card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.2s;
+            border: 1px solid #333;
+        }
+
+        .room-card:hover {
+            transform: translateY(-5px);
+            border-color: #FE2C55;
+        }
+
+        .room-preview {
+            height: 120px;
+            background: #333;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .host-avatar {
+            font-size: 3rem;
+            color: #666;
+        }
+
+        .live-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #FE2C55;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .room-info {
+            padding: 1rem;
+        }
+
+        .room-info h4 {
+            margin: 0 0 5px 0;
+            font-size: 1rem;
+        }
+
+        .room-info p {
+            color: #888;
+            font-size: 0.8rem;
+            margin: 0;
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+        }
+
+        /* --- New Features UI --- */
+        .request-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #FE2C55;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .modal-content {
+            background: #222;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 1px solid #444;
+        }
+
+        .modal-content ul {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+        }
+
+        .modal-content li {
+            background: #333;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .notif-toast {
+            background: rgba(254, 44, 85, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        #notification-area {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .avatar-circle.large {
+            width: 80px;
+            height: 80px;
+            font-size: 2rem;
+            background: #444;
+            border: 2px solid #FE2C55;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(254, 44, 85, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(254, 44, 85, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(254, 44, 85, 0);
+            }
+        }
+
+        /* Position request indicator relative to something */
+        .live-controls {
+            position: relative;
+        }
+
+        #request-indicator {
+            position: relative;
+            top: unset;
+            right: unset;
+            margin-left: 10px;
+            cursor: pointer;
+        }

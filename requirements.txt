@@ -4,3 +4,5 @@ flask-login
 werkzeug
 gunicorn
 psycopg2-binary
+flask-socketio
+eventlet

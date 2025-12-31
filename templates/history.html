@@ -38,7 +38,7 @@
                 <td class="text-right">
                     {% if current_user.is_authenticated %}
                     {% if meeting.status != 'Approved' %}
-                    <button class="btn-sm btn-success" onclick="approveMeeting({{ meeting.id }})">
+                    <button class="btn-sm btn-success" onclick="approveMeeting({{ meeting.id }}, this)">
                         <i class="fas fa-check"></i> Approve
                     </button>
                     {% endif %}
@@ -61,8 +61,13 @@
 </div>
 
 <script>
-    async function approveMeeting(id) {
+    async function approveMeeting(id, btnElement) {
         if (!confirm('Ma hubtaa inaad rabto inaad approve-gareyso kulankan?')) return;
+
+        // Visual feedback
+        const originalText = btnElement.innerHTML;
+        btnElement.innerText = 'Wait...';
+        btnElement.disabled = true;
 
         try {
             const res = await fetch(`/api/approve_meeting/${id}`, { method: 'POST' });
@@ -70,9 +75,14 @@
                 location.reload();
             } else {
                 alert('Error approving meeting');
+                btnElement.innerHTML = originalText;
+                btnElement.disabled = false;
             }
         } catch (e) {
+            console.error(e);
             alert('Network error');
+            btnElement.innerHTML = originalText;
+            btnElement.disabled = false;
         }
     }
 

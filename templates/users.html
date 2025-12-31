@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<header class="page-header">
+    <div class="header-text">
+        <h1>Maamulka Users-ka</h1>
+        <p>Manage application users and roles.</p>
+    </div>
+    <div class="header-actions">
+        <button class="btn-primary" onclick="openAddUserModal()">
+            <i class="fas fa-user-plus"></i> New User
+        </button>
+    </div>
+</header>
+
+<div class="attendance-card">
+    <table class="attendance-table">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr data-id="{{ user.id }}">
+                <td class="member-info">
+                    <div class="member-avatar">{{ user.username[0] | upper }}</div>
+                    <span class="member-name">{{ user.username }}</span>
+                </td>
+                <td>
+                    {% if user.role == 'Admin' %}
+                    <span class="badge success">Admin</span>
+                    {% else %}
+                    <span class="badge secondary">User</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="status-buttons">
+                        {% if user.role == 'Admin' %}
+                        <button class="btn-secondary btn-sm" onclick="updateRole({{ user.id }}, 'User')"
+                            title="Make User">
+                            <i class="fas fa-arrow-down"></i> Demote
+                        </button>
+                        {% else %}
+                        <button class="btn-success btn-sm" onclick="updateRole({{ user.id }}, 'Admin')"
+                            title="Make Admin">
+                            <i class="fas fa-arrow-up"></i> Promote
+                        </button>
+                        {% endif %}
+
+                        <button class="btn-icon danger" onclick="deleteUser({{ user.id }})">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add User Modal -->
+<div id="addUserModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New User</h2>
+            <button class="close-btn" onclick="closeAddUserModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="newUsername" placeholder="e.g. Ali">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="newPassword" placeholder="Strong password">
+            </div>
+            <div class="form-group">
+                <label>Initial Role</label>
+                <select id="newRole"
+                    style="width: 100%; padding: 0.75rem; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border); color: white; border-radius: 12px;">
+                    <option value="User">User</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeAddUserModal()">Cancel</button>
+            <button class="btn-primary" onclick="submitNewUser()">Create User</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openAddUserModal() {
+        document.getElementById('addUserModal').classList.remove('hidden');
+    }
+    function closeAddUserModal() {
+        document.getElementById('addUserModal').classList.add('hidden');
+    }
+
+    async function submitNewUser() {
+        const username = document.getElementById('newUsername').value;
+        const password = document.getElementById('newPassword').value;
+        const role = document.getElementById('newRole').value;
+
+        if (!username || !password) return alert('Fill all fields');
+
+        try {
+            const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            });
+            if (res.ok) {
+                location.reload();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Error creating user');
+            }
+        } catch (e) {
+            alert('Network error');
+        }
+    }
+
+    async function updateRole(userId, newRole) {
+        if (!confirm(`Change role to ${newRole}?`)) return;
+        try {
+            const res = await fetch(`/api/users/${userId}/role`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: newRole })
+            });
+            if (res.ok) location.reload();
+        } catch (e) { alert('Network error'); }
+    }
+
+    async function deleteUser(userId) {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        try {
+            const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+            if (res.ok) location.reload();
+        } catch (e) { alert('Network error'); }
+    }
+</script>
+{% endblock %}
